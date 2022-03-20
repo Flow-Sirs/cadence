@@ -110,13 +110,15 @@ func rootState(l *lexer) stateFn {
 		case 'F':
 			if l.acceptOne('x') {
 				r := l.next()
+				l.backupOne()
 				if isHexRune(r) {
-					l.backupOne()
 					return fxAddressState
 				} else {
 					l.backupOne()
-					l.backupOne()
+					return identifierState
 				}
+			} else {
+				return identifierState
 			}
 		case '"':
 			return stringState
