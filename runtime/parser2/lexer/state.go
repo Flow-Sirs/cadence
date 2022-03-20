@@ -107,6 +107,17 @@ func rootState(l *lexer) stateFn {
 			return spaceState(true)
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 			return numberState
+		case 'F':
+			if l.acceptOne('x') {
+				r := l.next()
+				if isHexRune(r) {
+					l.backupOne()
+					return fxAddressState
+				} else {
+					l.backupOne()
+					l.backupOne()
+				}
+			}
 		case '"':
 			return stringState
 		case '/':
@@ -238,11 +249,35 @@ func numberState(l *lexer) stateFn {
 				l.emitValue(TokenDecimalIntegerLiteral)
 			}
 		}
+	} else if r == 'F' {
+		r = l.next()
+		if r == 'x' {
+			l.scanHexadecimalRemainder()
+			if l.endOffset-l.startOffset <= 2 {
+				l.emitError(fmt.Errorf("missing digits"))
+			}
+			l.emitValue(TokenHexadecimalIntegerLiteral)
+		} else {
+			l.backupOne()
 
+		}
 	} else {
 		tokenType := l.scanDecimalOrFixedPointRemainder()
 		l.emitValue(tokenType)
 	}
+
+	return rootState
+}
+
+// fxAddressState returns a stateFn that scans the following runes as a
+// hexadecimal number and emits the corresponding token.
+// Assumes that the "Fx" runes have already been consumed.
+func fxAddressState(l *lexer) stateFn {
+	l.scanHexadecimalRemainder()
+	if l.endOffset-l.startOffset <= 2 {
+		l.emitError(fmt.Errorf("missing digits"))
+	}
+	l.emitValue(TokenHexadecimalIntegerLiteral)
 
 	return rootState
 }
